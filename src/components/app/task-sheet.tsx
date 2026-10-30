@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Download, Paperclip, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -42,6 +42,12 @@ const MAX_BYTES = 10 * 1024 * 1024;
 export function TaskSheet({ task, onClose, onLocalChange, onDeleted, members, currentUserId, orgId, isAdmin }: Props) {
   const supabase = useSupabaseBrowser();
   const [comments, setComments] = useState<TaskComment[]>([]);
+  // Comments appear the moment you press "Comment"; the saved row replaces the
+  // optimistic one when the Server Action returns.
+  const [visibleComments, addOptimisticComment] = useOptimistic(
+    comments,
+    (state: TaskComment[], pending: TaskComment) => [...state, pending],
+  );
   const [files, setFiles] = useState<TaskAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -274,18 +280,20 @@ export function TaskSheet({ task, onClose, onLocalChange, onDeleted, members, cu
               <section className="space-y-3">
                 <h3 className="text-sm font-medium">Comments</h3>
                 <ul className="space-y-3">
-                  {comments.map((c) => {
+                  {visibleComments.map((c) => {
                     const author = members.find((m) => m.id === c.author_id);
+                    const saving = c.id.startsWith("pending-");
                     return (
-                      <li key={c.id} className="flex gap-2.5">
+                      <li key={c.id} className={saving ? "flex gap-2.5 opacity-60" : "flex gap-2.5"} aria-busy={saving}>
                         <MemberAvatar name={author?.name ?? "A member"} avatarUrl={author?.avatarUrl} />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">{nameOf(c.author_id)}</span> · {timeAgo(c.created_at)}
+                            <span className="font-medium text-foreground">{nameOf(c.author_id)}</span> ·{" "}
+                            {saving ? "Sending…" : timeAgo(c.created_at)}
                           </p>
                           <p className="mt-0.5 whitespace-pre-wrap break-words text-sm">{c.body}</p>
                         </div>
-                        {(isAdmin || c.author_id === currentUserId) && (
+                        {!saving && (isAdmin || c.author_id === currentUserId) && (
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -308,17 +316,27 @@ export function TaskSheet({ task, onClose, onLocalChange, onDeleted, members, cu
                 <form
                   action={(form) =>
                     startTransition(async () => {
-                      const body = String(form.get("body") ?? "");
+                      const body = String(form.get("body") ?? "").trim();
+                      if (!body) return;
+                      addOptimisticComment({
+                        id: `pending-${crypto.randomUUID()}`,
+                        org_id: orgId,
+                        task_id: task.id,
+                        author_id: currentUserId,
+                        body,
+                        created_at: new Date().toISOString(),
+                      });
                       const r = await addComment({ taskId: task.id, body });
-                      if (!r.ok) return void toast.error(r.error);
-                      await load();
+                      if (!r.ok || !r.data) return void toast.error(r.ok ? "Something went wrong." : r.error);
+                      const saved = r.data.comment;
+                      setComments((cs) => (cs.some((x) => x.id === saved.id) ? cs : [...cs, saved]));
                     })
                   }
                   className="space-y-2"
                 >
-                  <Textarea key={comments.length} name="body" rows={2} maxLength={5000} placeholder="Write a comment…" required />
+                  <Textarea key={visibleComments.length} name="body" rows={2} maxLength={5000} placeholder="Write a comment…" required />
                   <div className="flex justify-end">
-                    <Button type="submit" size="sm" disabled={pending}>
+                    <Button type="submit" size="sm">
                       Comment
                     </Button>
                   </div>

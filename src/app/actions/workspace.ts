@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createUserSupabase } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
-import type { Task } from "@/lib/supabase/types";
+import type { Task, TaskComment } from "@/lib/supabase/types";
 import {
   attachmentSchema,
   commentSchema,
@@ -62,7 +62,13 @@ export async function archiveProject(projectId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function createTask(form: FormData): Promise<ActionResult<{ id: string }>> {
+/**
+ * Returns the full inserted row so the board can swap its optimistic card for
+ * the real one immediately. No revalidatePath/router.refresh here: re-rendering
+ * the whole project page (5 RLS queries) after every insert was the main cause
+ * of the 5-10 s delay. Other members get the row via Realtime.
+ */
+export async function createTask(form: FormData): Promise<ActionResult<{ task: Task }>> {
   const c = await context();
   if ("error" in c) return { ok: false, error: c.error! };
   const parsed = taskCreateSchema.safeParse(formToObject(form));
@@ -79,11 +85,10 @@ export async function createTask(form: FormData): Promise<ActionResult<{ id: str
       assignee_id: t.assigneeId ?? null,
       due_date: t.dueDate ?? null,
     })
-    .select("id")
+    .select("*")
     .single();
   if (error) return { ok: false, error: friendly(error.message) };
-  revalidatePath(`/app/projects/${t.projectId}`);
-  return { ok: true, data: { id: data.id } };
+  return { ok: true, data: { task: data } };
 }
 
 export async function updateTask(input: unknown): Promise<ActionResult> {
@@ -115,16 +120,18 @@ export async function deleteTask(taskId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function addComment(input: unknown): Promise<ActionResult> {
+export async function addComment(input: unknown): Promise<ActionResult<{ comment: TaskComment }>> {
   const c = await context();
   if ("error" in c) return { ok: false, error: c.error! };
   const parsed = commentSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Write a comment first." };
-  const { error } = await c.supabase
+  const { data, error } = await c.supabase
     .from("task_comments")
-    .insert({ task_id: parsed.data.taskId, body: parsed.data.body });
+    .insert({ task_id: parsed.data.taskId, body: parsed.data.body })
+    .select("*")
+    .single();
   if (error) return { ok: false, error: friendly(error.message) };
-  return { ok: true };
+  return { ok: true, data: { comment: data } };
 }
 
 export async function deleteComment(commentId: string): Promise<ActionResult> {
