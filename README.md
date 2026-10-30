@@ -111,6 +111,11 @@ Defence in depth beyond the policies:
 - **Activity feed:** every create, status change, assignment, comment and file upload is logged by triggers.
 - **Weekly digest:** `pg_cron` calls the `weekly-digest` Edge Function every Monday at 03:00 UTC through `pg_net`, authenticated with a shared secret stored in Supabase Vault. The function writes a per-org summary (`digests` table) shown on the dashboard.
 
+## Performance
+
+- Vercel Functions run in `bom1` (Mumbai), the same area as the Supabase project (`ap-south-1`), so each RLS query is a few milliseconds instead of a ~200 ms trip from the default `iad1` region (`vercel.json` `regions` plus the project's function region setting).
+- New tasks and comments use React `useOptimistic`: they show the moment you press Enter, and the Server Action returns the inserted row to replace the placeholder. Writes no longer call `revalidatePath` + `router.refresh()`, which re-rendered the whole board (five RLS queries) after every insert. Teammates still get changes through Realtime.
+
 ## Tests
 
 ```bash
