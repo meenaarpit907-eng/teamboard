@@ -2,7 +2,7 @@
 
 A multi-tenant team workspace (projects, a realtime task board, comments, file attachments and a weekly digest) built to show how **Clerk**, **Supabase** and **Vercel** fit together when tenant isolation is enforced by Postgres instead of application code.
 
-- **Live:** LIVE_URL_PLACEHOLDER
+- **Live:** https://teamboard-silk.vercel.app
 - **Author:** [Arpit Meena](https://arpitm.me)
 
 > Status: the Vercel deployment runs, and until Clerk and Supabase keys are added it shows a "not configured" checklist instead of the workspace. The setup section below lists every step.
