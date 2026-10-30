@@ -1,0 +1,60 @@
+{
+  "name": "teamboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant team workspace built with Next.js, Clerk Organizations and Supabase (third-party auth + RLS), deployed on Vercel.",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:push": "supabase db push",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
+    "functions:serve": "supabase functions serve weekly-digest --env-file supabase/functions/.env",
+    "provision": "node scripts/provision-supabase.mjs"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.9.22",
+    "@supabase/supabase-js": "^2.118.0",
+    "@vercel/analytics": "^1.5.0",
+    "@vercel/speed-insights": "^1.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.61.0",
+    "next": "15.5.28",
+    "radix-ui": "^1.8.1",
+    "react": "~19.1.10",
+    "react-dom": "~19.1.10",
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.7",
+    "svix": "^1.76.1",
+    "tailwind-merge": "^3.3.1",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.28",
+    "shadcn": "^4.22.1",
+    "supabase": "^2.122.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}
